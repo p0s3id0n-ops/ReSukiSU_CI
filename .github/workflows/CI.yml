@@ -26,7 +26,7 @@ jobs:
         run: |
           echo "Starting to fetch latest $N_LATEST_RUNS runs from $TARGET_REPO..."
           
-          runs_json=$(gh api repos/$TARGET_REPO/actions/runs?per_page=$N_LATEST_RUNS -q '.workflow_runs[] | {id: .id, title: .display_title}')
+          runs_json=$(gh api repos/$TARGET_REPO/actions/runs?per_page=$N_LATEST_RUNS -q '.workflow_runs | reverse | .[] | {id: .id, title: .display_title}')
           
           echo "$runs_json" | jq -c '.' | while read -r run; do
               run_id=$(echo "$run" | jq -r '.id')
