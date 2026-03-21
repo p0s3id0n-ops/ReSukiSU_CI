@@ -31,6 +31,7 @@ jobs:
           echo "$runs_json" | jq -c '.' | while read -r run; do
               run_id=$(echo "$run" | jq -r '.id')
               run_title=$(echo "$run" | jq -r '.title')
+              run_url=$(echo "$run" | jq -r '.url')
               tag_name="ReSukiSU_${run_id}"
               
               echo "----------------------------------------"
