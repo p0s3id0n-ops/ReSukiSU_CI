@@ -1,2 +1,2 @@
 # ReSukiSU_CI
-The auto-release repository for ReSukiSU CI builds.
+这里是 ReSukiSU 的 CI Bulid 自动发布仓库，仅用于自动拉取 ReSukiSU 的 CI 构建，无需fork
