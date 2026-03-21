@@ -26,7 +26,7 @@ jobs:
         run: |
           echo "Starting to fetch latest $N_LATEST_RUNS runs from $TARGET_REPO..."
           
-          runs_json=$(gh api repos/$TARGET_REPO/actions/runs?per_page=$N_LATEST_RUNS -q '.workflow_runs | reverse | .[] | {id: .id, title: .display_title}')
+          runs_json=$(gh api "repos/$TARGET_REPO/actions/runs?branch=main&per_page=$N_LATEST_RUNS" -q '[.workflow_runs[] | select(.event != "pull_request")] | reverse | .[] | {id: .id, title: .display_title, url: .html_url}')
           
           echo "$runs_json" | jq -c '.' | while read -r run; do
               run_id=$(echo "$run" | jq -r '.id')
@@ -120,7 +120,8 @@ jobs:
                           
                           # 发布 Release
                           if [ ${#assets[@]} -gt 0 ]; then
-                              gh release create "$tag_name" "${assets[@]}" --title "$release_name" --notes "$run_title"
+                              release_notes=$(printf "%s\n\n**原始 Action 链接:** %s" "$run_title" "$run_url")
+                              gh release create "$tag_name" "${assets[@]}" --title "$release_name" --notes "$release_notes"
                               echo "✅ Release $release_name created successfully!"
                           else
                               echo "❌ No files found to release after cleanup."
