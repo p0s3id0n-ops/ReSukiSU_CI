@@ -99,12 +99,12 @@ jobs:
                   fi
                   
                   # 检索目标 apk 文件并提取五位版本号
-                  # 使用正则匹配形如 ReSukiSU_*_?????-universal-release.apk 的文件
-                  apk_file=$(find . -maxdepth 1 -name "ReSukiSU_*_[0-9][0-9][0-9][0-9][0-9]-universal-release.apk" | head -n 1)
+                  # 使用正则匹配形如 ReSukiSU_*_?????-*.apk 的文件
+                  apk_file=$(find . -maxdepth 1 -name "ReSukiSU*_[0-9][0-9][0-9][0-9][0-9]-*.apk" | head -n 1)
                   
                   if [ -n "$apk_file" ]; then
                       # 提取连续的5位数字
-                      if [[ "$apk_file" =~ ([0-9]{5})-universal-release\.apk ]]; then
+                      if [[ "$apk_file" =~ _([0-9]{5})-.*\.apk$ ]]; then
                           five_digits="${BASH_REMATCH[1]}"
                           release_name="v${five_digits}"
                           
