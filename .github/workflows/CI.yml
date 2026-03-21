@@ -1,0 +1,124 @@
+name: Sync ReSukiSU CI Builds
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'
+  workflow_dispatch: 
+
+env:
+  # 可以在这里手动设置需要检查的最新 N 条 Action 数量
+  N_LATEST_RUNS: 5 
+  TARGET_REPO: ReSukiSU/ReSukiSU
+
+jobs:
+  fetch-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Process Artifacts and Publish Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Starting to fetch latest $N_LATEST_RUNS runs from $TARGET_REPO..."
+          
+          runs_json=$(gh api repos/$TARGET_REPO/actions/runs?per_page=$N_LATEST_RUNS -q '.workflow_runs[] | {id: .id, title: .display_title}')
+          
+          echo "$runs_json" | jq -c '.' | while read -r run; do
+              run_id=$(echo "$run" | jq -r '.id')
+              run_title=$(echo "$run" | jq -r '.title')
+              tag_name="ReSukiSU_${run_id}"
+              
+              echo "----------------------------------------"
+              echo "Checking run ID: $run_id (Title: $run_title)"
+              
+              # 检查此前是否发布过该 tag 的 release
+              if gh release view "$tag_name" >/dev/null 2>&1; then
+                  echo "⚠️ Release with tag $tag_name already exists. Skipping."
+                  continue
+              fi
+              
+              # 获取该 run 的所有工件列表
+              artifacts_json=$(gh api repos/$TARGET_REPO/actions/runs/$run_id/artifacts)
+              
+              # 1. 确认是否包含名为 Manager-release 的工件
+              if echo "$artifacts_json" | jq -e '.artifacts[] | select(.name == "Manager-release")' > /dev/null; then
+                  echo "✅ Found Manager-release. Proceeding to download artifacts..."
+                  
+                  # 创建以 action ID 命名的文件夹并进入
+                  mkdir -p "$run_id"
+                  cd "$run_id"
+                  
+                  # 下载该 action 下的所有工件
+                  echo "$artifacts_json" | jq -c '.artifacts[]' | while read -r artifact; do
+                      art_id=$(echo "$artifact" | jq -r '.id')
+                      art_name=$(echo "$artifact" | jq -r '.name')
+                      echo "   -> Downloading $art_name.zip..."
+                      gh api repos/$TARGET_REPO/actions/artifacts/$art_id/zip > "${art_name}.zip"
+                  done
+                  
+                  # 解包所有压缩包到当前文件夹，并删除原始 zip 包
+                  for zip_file in *.zip; do
+                      if [ -f "$zip_file" ]; then
+                          unzip -q -o "$zip_file"
+                          rm "$zip_file"
+                      fi
+                  done
+                  
+                  # 将 apk 移动到工件根目录，并清理 ./apk 目录
+                  if [ -d "apk/release" ]; then
+                      find apk/release -name "*.apk" -exec mv {} . \;
+                  fi
+                  if [ -d "apk/debug" ]; then
+                      find apk/debug -name "*.apk" -exec mv {} . \;
+                  fi
+                  if [ -d "apk" ]; then
+                      rm -rf apk
+                  fi
+                  
+                  # 检索目标 apk 文件并提取五位数
+                  # 使用正则匹配形如 ReSukiSU_*_?????-universal-release.apk 的文件
+                  apk_file=$(find . -maxdepth 1 -name "ReSukiSU_*_[0-9][0-9][0-9][0-9][0-9]-universal-release.apk" | head -n 1)
+                  
+                  if [ -n "$apk_file" ]; then
+                      # 提取连续的5位数字
+                      if [[ "$apk_file" =~ ([0-9]{5})-universal-release\.apk ]]; then
+                          five_digits="${BASH_REMATCH[1]}"
+                          release_name="v${five_digits}"
+                          
+                          echo "🎉 Preparing to publish release: $release_name with tag: $tag_name"
+                          
+                          # 将当前文件夹下的所有文件收集为 release 资产
+                          assets=()
+                          for file in *; do
+                              if [ -f "$file" ]; then
+                                  assets+=("$file")
+                              fi
+                          done
+                          
+                          # 发布 Release
+                          if [ ${#assets[@]} -gt 0 ]; then
+                              gh release create "$tag_name" "${assets[@]}" --title "$release_name" --notes "$run_title"
+                              echo "✅ Release $release_name created successfully!"
+                          else
+                              echo "❌ No files found to release after cleanup."
+                          fi
+                      else
+                          echo "❌ Could not extract 5 digits from filename: $apk_file"
+                      fi
+                  else
+                      echo "❌ Required APK pattern (ReSukiSU_*_XXXXX-universal-release.apk) not found. Skipping release."
+                  fi
+                  
+                  # 退出文件夹并清理，以免影响下一个循环
+                  cd ..
+                  rm -rf "$run_id"
+              else
+                  echo "⏭️ No Manager-release artifact found in run $run_id. Skipping."
+              fi
+          done
+          echo "All done!"
