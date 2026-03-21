@@ -7,7 +7,7 @@ on:
 
 env:
   # 可以在这里手动设置需要检查的最新 N 条 Action 数量
-  N_LATEST_RUNS: 20 
+  N_LATEST_RUNS: 50 
   TARGET_REPO: ReSukiSU/ReSukiSU
 
 jobs:
