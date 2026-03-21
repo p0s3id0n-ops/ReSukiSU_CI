@@ -64,6 +64,12 @@ jobs:
                   # 解包所有压缩包到当前文件夹，并删除原始 zip 包
                   for zip_file in *.zip; do
                       if [ -f "$zip_file" ]; then
+                          # 检查是否是需要跳过的压缩包
+                          if [[ "$zip_file" == ksud-*.zip ]] || [[ "$zip_file" == ksuinit.zip ]]; then
+                              echo "   -> 🗑️ Skipping extract $zip_file"
+                              continue
+                          fi
+                          echo "   -> 📦 Extracting $zip_file"
                           unzip -q -o "$zip_file"
                           rm "$zip_file"
                       fi
@@ -80,7 +86,19 @@ jobs:
                       rm -rf apk
                   fi
                   
-                  # 检索目标 apk 文件并提取五位数
+                  # 打包所有 .ko 文件为 lkm-all.zip，并删除原文件
+                  # 使用数组收集 .ko 文件，避免在没有 .ko 文件时报错
+                  ko_files=(*.ko)
+                  if [ ${#ko_files[@]} -gt 0 ] && [ "${ko_files[0]}" != "*.ko" ]; then
+                      echo "   -> 🗜️ Zipping ${#ko_files[@]} .ko files into lkm-all.zip..."
+                      zip -q lkm-all.zip "${ko_files[@]}"
+                      echo "   -> 🗑️ Deleting original .ko files..."
+                      rm "${ko_files[@]}"
+                  else
+                      echo "   -> ℹ️ No .ko files found to zip."
+                  fi
+                  
+                  # 检索目标 apk 文件并提取五位版本号
                   # 使用正则匹配形如 ReSukiSU_*_?????-universal-release.apk 的文件
                   apk_file=$(find . -maxdepth 1 -name "ReSukiSU_*_[0-9][0-9][0-9][0-9][0-9]-universal-release.apk" | head -n 1)
                   
