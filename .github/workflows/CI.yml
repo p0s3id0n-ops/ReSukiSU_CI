@@ -66,7 +66,7 @@ jobs:
                   for zip_file in *.zip; do
                       if [ -f "$zip_file" ]; then
                           # 检查是否是需要跳过的压缩包
-                          if [[ "$zip_file" == ksud-*.zip ]] || [[ "$zip_file" == ksuinit.zip ]]; then
+                          if [[ "$zip_file" == ksud-*.zip ]] || [[ "$zip_file" == ksuinit.zip ]] || [[ "$zip_file" == *spoofed*.zip ]]; then
                               echo "   -> 🗑️ Skipping extract $zip_file"
                               continue
                           fi
