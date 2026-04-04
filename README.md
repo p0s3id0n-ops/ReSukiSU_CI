@@ -1,2 +1,2 @@
 # ReSukiSU_CI
-这里是 ReSukiSU 的 CI Bulid 自动发布仓库，仅用于自动拉取 ReSukiSU 的 CI 构建，无需fork
+Đây là kho lưu trữ tự động phát hành bản dựng CI của ReSukiSU, chỉ được sử dụng để tự động tải xuống các bản dựng CI của ReSukiSU; không cần tạo nhánh riêng.
