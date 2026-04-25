@@ -12,7 +12,7 @@ name: 🔄 Đồng Bộ CI ReSukiSU (Auto Release)
 
 on:
   schedule:
-    # ⏱️ Chạy tự động mỗi 8 tiếng một lần
+    # ⏱️ Chạy tự động mỗi 2 tiếng một lần
     - cron: '0 */2 * * *'
   # 🔘 Cho phép kích hoạt chạy bằng tay (Manual)
   workflow_dispatch: 
@@ -34,13 +34,13 @@ jobs:
       - name: 📥 Clone Mã Nguồn Tại Chỗ
         uses: actions/checkout@v4
 
-      - name: ⚙️ Nhào Nặn Artifacts & Bắn Release Lên Sàn
+      - name: ⚙️ Nhào Nặn Artifacts & Bắn Release Lên Repo
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🚀 Bắt đầu cào $N_LATEST_RUNS bản build mới nhất từ $TARGET_REPO..."
+          echo "🚀 Bắt đầu check $N_LATEST_RUNS bản build mới nhất từ $TARGET_REPO..."
           
-          # Gọi API lấy mẻ lưới các runs
+          # Gọi API lấy các runs mới
           runs_json=$(gh api "repos/$TARGET_REPO/actions/runs?branch=main&per_page=$N_LATEST_RUNS" -q '[.workflow_runs[] | select(.event != "pull_request")] | reverse | .[] | {id: .id, title: .display_title, url: .html_url}')
           
           echo "$runs_json" | jq -c '.' | while read -r run; do
@@ -50,20 +50,20 @@ jobs:
               tag_name="ReSukiSU_${run_id}"
               
               echo "----------------------------------------"
-              echo "🔍 Đang check con hàng Run ID: $run_id (Tiêu đề: $run_title)"
+              echo "🔍 Đang check Run ID: $run_id (Tiêu đề: $run_title)"
               
               # Check xem mẻ này đã xào (Release) bao giờ chưa
               if gh release view "$tag_name" >/dev/null 2>&1; then
-                  echo "⚠️ Release mang tag $tag_name đã có trên kệ rồi. Bỏ qua cho rảnh nợ!"
+                  echo "⚠️ Release tag $tag_name đã có trên kệ rồi. Bỏ qua cho rảnh nợ!"
                   continue
               fi
               
-              # Soi xem nó có rụng ra Artifact nào không
+              # Soi xem nó có Artifact nào không
               artifacts_json=$(gh api repos/$TARGET_REPO/actions/runs/$run_id/artifacts)
               
-              # 1. Chốt đơn xem có cục "Manager-release" không
+              # 1. Xem có cục "Manager-release" không
               if echo "$artifacts_json" | jq -e '.artifacts[] | select(.name == "Manager-release")' > /dev/null; then
-                  echo "✅ Ngon lành, đã thấy Manager-release! Tiến hành bú Artifacts về..."
+                  echo "✅ Ngon lành, đã thấy Manager-release! Tiến hành tải về các Artifacts về..."
                   
                   # Tạo folder tạm tên là ID của Action đó
                   mkdir -p "$run_id"
@@ -91,7 +91,7 @@ jobs:
                       fi
                   done
                   
-                  # Bứng các file APK từ thư mục con ra thẳng thư mục gốc rồi xóa folder rỗng
+                  # Búng các file APK từ thư mục con ra thẳng thư mục gốc rồi xóa folder rỗng
                   if [ -d "apk/release" ]; then
                       find apk/release -name "*.apk" -exec mv {} . \;
                   fi
@@ -155,4 +155,4 @@ jobs:
               fi
           done
           
-          echo "🎉 Đã xong toàn bộ mẻ quét lưới! Chúc Dev Lỏ p0s3id0n đi ngủ ngon!"
+          echo "🎉 Đã quét xong toàn bộ ! Chúc p0s3id0n đi ngủ ngon!"
