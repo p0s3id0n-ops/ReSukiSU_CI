@@ -1,31 +1,46 @@
-name: Sync ReSukiSU CI Builds
+# ========================================
+# 🔄 WORKFLOW ĐỒNG BỘ CI RESUKISU & AUTO RELEASE
+# 👑 Việt hóa & Tối ưu bởi: p0s3id0n
+# ========================================
+# Workflow này tự động quét repo gốc của ReSukiSU mỗi 8 tiếng,
+# lùng sục các bản build thành công có Manager-release, tải về,
+# dọn dẹp file rác, gom file .ko và tự động xuất bản (Publish) 
+# thành GitHub Release tại repo của mình.
+# ========================================
+
+name: 🔄 Đồng Bộ CI ReSukiSU (Auto Release)
 
 on:
   schedule:
-    - cron: '0 */8 * * *'
+    # ⏱️ Chạy tự động mỗi 8 tiếng một lần
+    - cron: '0 */2 * * *'
+  # 🔘 Cho phép kích hoạt chạy bằng tay (Manual)
   workflow_dispatch: 
 
 env:
-  # 可以在这里手动设置需要检查的最新 N 条 Action 数量
+  # 🎯 Số lượng Action Runs mới nhất muốn cào về để check
   N_LATEST_RUNS: 50 
+  # 🎯 Repo mục tiêu để hút máu (Lấy bản gốc)
   TARGET_REPO: ReSukiSU/ReSukiSU
 
 jobs:
   fetch-and-release:
+    name: "🤖 Quét CI & Lên Kệ Release"
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Clone Mã Nguồn Tại Chỗ
         uses: actions/checkout@v4
 
-      - name: Process Artifacts and Publish Release
+      - name: ⚙️ Nhào Nặn Artifacts & Bắn Release Lên Sàn
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Starting to fetch latest $N_LATEST_RUNS runs from $TARGET_REPO..."
+          echo "🚀 Bắt đầu cào $N_LATEST_RUNS bản build mới nhất từ $TARGET_REPO..."
           
+          # Gọi API lấy mẻ lưới các runs
           runs_json=$(gh api "repos/$TARGET_REPO/actions/runs?branch=main&per_page=$N_LATEST_RUNS" -q '[.workflow_runs[] | select(.event != "pull_request")] | reverse | .[] | {id: .id, title: .display_title, url: .html_url}')
           
           echo "$runs_json" | jq -c '.' | while read -r run; do
@@ -35,48 +50,48 @@ jobs:
               tag_name="ReSukiSU_${run_id}"
               
               echo "----------------------------------------"
-              echo "Checking run ID: $run_id (Title: $run_title)"
+              echo "🔍 Đang check con hàng Run ID: $run_id (Tiêu đề: $run_title)"
               
-              # 检查此前是否发布过该 tag 的 release
+              # Check xem mẻ này đã xào (Release) bao giờ chưa
               if gh release view "$tag_name" >/dev/null 2>&1; then
-                  echo "⚠️ Release with tag $tag_name already exists. Skipping."
+                  echo "⚠️ Release mang tag $tag_name đã có trên kệ rồi. Bỏ qua cho rảnh nợ!"
                   continue
               fi
               
-              # 获取该 run 的所有工件列表
+              # Soi xem nó có rụng ra Artifact nào không
               artifacts_json=$(gh api repos/$TARGET_REPO/actions/runs/$run_id/artifacts)
               
-              # 1. 确认是否包含名为 Manager-release 的工件
+              # 1. Chốt đơn xem có cục "Manager-release" không
               if echo "$artifacts_json" | jq -e '.artifacts[] | select(.name == "Manager-release")' > /dev/null; then
-                  echo "✅ Found Manager-release. Proceeding to download artifacts..."
+                  echo "✅ Ngon lành, đã thấy Manager-release! Tiến hành bú Artifacts về..."
                   
-                  # 创建以 action ID 命名的文件夹并进入
+                  # Tạo folder tạm tên là ID của Action đó
                   mkdir -p "$run_id"
                   cd "$run_id"
                   
-                  # 下载该 action 下的所有工件
+                  # Down sạch sẽ các Artifact của Action đó
                   echo "$artifacts_json" | jq -c '.artifacts[]' | while read -r artifact; do
                       art_id=$(echo "$artifact" | jq -r '.id')
                       art_name=$(echo "$artifact" | jq -r '.name')
-                      echo "   -> Downloading $art_name.zip..."
+                      echo "   ⬇️ Đang tải cục $art_name.zip..."
                       gh api repos/$TARGET_REPO/actions/artifacts/$art_id/zip > "${art_name}.zip"
                   done
                   
-                  # 解包所有压缩包到当前文件夹，并删除原始 zip 包
+                  # Bung lụa đống zip vừa tải và phi tang xác zip
                   for zip_file in *.zip; do
                       if [ -f "$zip_file" ]; then
-                          # 检查是否是需要跳过的压缩包
+                          # Né mấy cục không cần thiết ra
                           if [[ "$zip_file" == ksud-*.zip ]] || [[ "$zip_file" == ksuinit.zip ]] || [[ "$zip_file" == Spoofed-*.zip ]]; then
-                              echo "   -> 🗑️ Skipping extract $zip_file"
+                              echo "   ⏭️ 🗑️ Né không bung cục $zip_file"
                               continue
                           fi
-                          echo "   -> 📦 Extracting $zip_file"
+                          echo "   📦 Đang giải nén $zip_file"
                           unzip -q -o "$zip_file"
                           rm "$zip_file"
                       fi
                   done
                   
-                  # 将 apk 移动到工件根目录，并清理 ./apk 目录
+                  # Bứng các file APK từ thư mục con ra thẳng thư mục gốc rồi xóa folder rỗng
                   if [ -d "apk/release" ]; then
                       find apk/release -name "*.apk" -exec mv {} . \;
                   fi
@@ -87,31 +102,29 @@ jobs:
                       rm -rf apk
                   fi
                   
-                  # 打包所有 .ko 文件为 lkm-all.zip，并删除原文件
-                  # 使用数组收集 .ko 文件，避免在没有 .ko 文件时报错
+                  # Nhồi toàn bộ file .ko (Kernel Module) vào một cục lkm-all.zip cho gọn gàng
                   ko_files=(*.ko)
                   if [ ${#ko_files[@]} -gt 0 ] && [ "${ko_files[0]}" != "*.ko" ]; then
-                      echo "   -> 🗜️ Zipping ${#ko_files[@]} .ko files into lkm-all.zip..."
+                      echo "   🗜️ Đang nhồi ${#ko_files[@]} file .ko vào chung một gói lkm-all.zip..."
                       zip -q lkm-all.zip "${ko_files[@]}"
-                      echo "   -> 🗑️ Deleting original .ko files..."
+                      echo "   🗑️ Dọn dẹp mấy file .ko lẻ tẻ gốc đi..."
                       rm "${ko_files[@]}"
                   else
-                      echo "   -> ℹ️ No .ko files found to zip."
+                      echo "   ℹ️ Không thấy bóng dáng file .ko nào để nén."
                   fi
                   
-                  # 检索目标 apk 文件并提取五位版本号
-                  # 使用正则匹配形如 ReSukiSU_*_?????-*.apk 的文件
+                  # Định vị APK gốc và soi tìm 5 số Version Code vĩ đại
                   apk_file=$(find . -maxdepth 1 -name "ReSukiSU*_[0-9][0-9][0-9][0-9][0-9]-*.apk" | head -n 1)
                   
                   if [ -n "$apk_file" ]; then
-                      # 提取连续的5位数字
+                      # Dùng RegEx để moi 5 con số Version Code ra
                       if [[ "$apk_file" =~ _([0-9]{5})-.*\.apk$ ]]; then
                           five_digits="${BASH_REMATCH[1]}"
                           release_name="v${five_digits}"
                           
-                          echo "🎉 Preparing to publish release: $release_name with tag: $tag_name"
+                          echo "🎉 Chuẩn bị lên mâm Release: $release_name (Tag: $tag_name)"
                           
-                          # 将当前文件夹下的所有文件收集为 release 资产
+                          # Gom hết file trong folder hiện tại để làm Release Assets
                           assets=()
                           for file in *; do
                               if [ -f "$file" ]; then
@@ -119,26 +132,27 @@ jobs:
                               fi
                           done
                           
-                          # 发布 Release
+                          # Bắn Release lên GitHub!
                           if [ ${#assets[@]} -gt 0 ]; then
-                              release_notes=$(printf "%s\n\n**原始 Action 链接:** %s" "$run_title" "$run_url")
+                              release_notes=$(printf "🚀 **Tự động kéo hàng từ thượng nguồn.**\n\n%s\n\n🔗 **Link Action Gốc (Check Legit):** %s" "$run_title" "$run_url")
                               gh release create "$tag_name" "${assets[@]}" --title "$release_name" --notes "$release_notes"
-                              echo "✅ Release $release_name created successfully!"
+                              echo "✅ Tạo Release $release_name thành công rực rỡ!"
                           else
-                              echo "❌ No files found to release after cleanup."
+                              echo "❌ Dọn dẹp xong chả còn file mẹ nào để up release. Nghỉ!"
                           fi
                       else
-                          echo "❌ Could not extract 5 digits from filename: $apk_file"
+                          echo "❌ Bó tay, không soi ra được 5 số version từ cái tên file: $apk_file"
                       fi
                   else
-                      echo "❌ Required APK pattern (ReSukiSU_*_XXXXX-universal-release.apk) not found. Skipping release."
+                      echo "❌ Không tìm ra cái APK chuẩn bài (ReSukiSU_*_XXXXX-*.apk) nào. Lượn đi cho nước nó trong."
                   fi
                   
-                  # 退出文件夹并清理，以免影响下一个循环
+                  # Lùi ra ngoài và đốt sạch hiện trường để loop chạy tiếp mẻ khác
                   cd ..
                   rm -rf "$run_id"
               else
-                  echo "⏭️ No Manager-release artifact found in run $run_id. Skipping."
+                  echo "⏭️ Run $run_id này móm rồi, đéo có Manager-release artifact. Skip!"
               fi
           done
-          echo "All done!"
+          
+          echo "🎉 Đã xong toàn bộ mẻ quét lưới! Chúc Dev Lỏ p0s3id0n đi ngủ ngon!"
