@@ -134,9 +134,9 @@ jobs:
                           
                           # Bắn Release lên GitHub!
                           if [ ${#assets[@]} -gt 0 ]; then
-                              release_notes=$(printf "🚀 **Tự động kéo hàng từ thượng nguồn.**\n\n%s\n\n🔗 **Link Action Gốc (Check Legit):** %s" "$run_title" "$run_url")
+                              release_notes=$(printf "🚀 **Tự động kiểm tra, tải về Release.**\n\n%s\n\n🔗 **Link Action Gốc (Check Legit):** %s" "$run_title" "$run_url")
                               gh release create "$tag_name" "${assets[@]}" --title "$release_name" --notes "$release_notes"
-                              echo "✅ Tạo Release $release_name thành công rực rỡ!"
+                              echo "✅ Đã tạo Release $release_name thành công!"
                           else
                               echo "❌ Dọn dẹp xong chả còn file mẹ nào để up release. Nghỉ!"
                           fi
