@@ -19,7 +19,7 @@ on:
 
 env:
   # 🎯 Số lượng Action Runs mới nhất muốn cào về để check
-  N_LATEST_RUNS: 50 
+  N_LATEST_RUNS: 10 
   # 🎯 Repo mục tiêu để hút máu (Lấy bản gốc)
   TARGET_REPO: ReSukiSU/ReSukiSU
 
