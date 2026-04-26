@@ -123,7 +123,7 @@ jobs:
                               for file in *; do [ -f "$file" ] && assets+=("$file"); done
                               
                               if [ ${#assets[@]} -gt 0 ]; then
-                                  release_notes=$(printf "🚀 **Tự động kéo hàng từ thượng nguồn (%s).**\n\n%s\n\n🔗 **Link Action Gốc (Check Legit):** %s" "$variant" "$run_title" "$run_url")
+                                  release_notes=$(printf "🚀 **Tự động tải về và release (%s).**\n\n%s\n\n🔗 **Link Action Gốc (Check Legit):** %s" "$variant" "$run_title" "$run_url")
                                   gh release create "$tag" "${assets[@]}" --title "$release_name" --notes "$release_notes"
                                   echo "   ✅ Tạo Release $release_name thành công rực rỡ!"
                               fi
